@@ -5,7 +5,7 @@
 | Field | Value |
 |-------|-------|
 | **OS** | Windows |
-| **Difficulty** | Hard |
+| **Difficulty** | Medium |
 | **Release Date** | 14/06/2026 |
 | **Written by** | Dhia Eddine Saïd (BALD) |
 
