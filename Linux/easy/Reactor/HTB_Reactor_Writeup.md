@@ -1,5 +1,5 @@
 # HackTheBox — Reactor Writeup
-**Difficulty:** Very Easy | **OS:** Linux | **Author:** You
+**Difficulty:** Easy | **OS:** Linux | **Author:** BALD
 
 ---
 
