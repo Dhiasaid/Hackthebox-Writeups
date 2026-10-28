@@ -373,7 +373,7 @@ cat C:\Users\max.palmer\Desktop\root.txt
 
 ## 6 — Proof
 
-![Solved](./screenshots/27-solved.png)
+![Solved](./27-solved.png)
 
 ---
 
