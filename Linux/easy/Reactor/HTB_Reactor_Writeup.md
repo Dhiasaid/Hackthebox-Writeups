@@ -1,6 +1,6 @@
 # HackTheBox — Reactor Writeup
 **Difficulty:** Easy | **OS:** Linux | **Author:** BALD
-
+![Reactor Machine Logo](reactor-logo.png)
 ---
 
 ## What is this box about?
