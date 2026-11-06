@@ -203,7 +203,7 @@ b39424142c714119f3bdd115a7e9c35e
 ## Proof
 
 <p align="center">
-  <img src="images/solved.png" alt="MakeSense solved confirmation" width="600">
+  <img src="solved.png" alt="MakeSense solved confirmation" width="600">
 </p>
 
 ---
