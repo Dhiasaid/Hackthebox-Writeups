@@ -1,7 +1,7 @@
 # MakeSense — HackTheBox Writeup
 
 <p align="center">
-  <img src="images/makesense-logo.png" alt="MakeSense machine logo" width="200">
+  <img src="makesense-logo.png" alt="MakeSense machine logo" width="200">
 </p>
 
 **OS:** Linux
