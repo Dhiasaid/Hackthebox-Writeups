@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="images/garfield_logo.png" alt="Garfield - HackTheBox" width="180"/>
-</p>
+![Garfield](images/garfield_logo.png)
 
 <h1 align="center">HackTheBox — Garfield</h1>
 <p align="center"><b>Difficulty:</b> Hard &nbsp;|&nbsp; <b>OS:</b> Windows &nbsp;|&nbsp; <b>Author:</b> BALD</p>
